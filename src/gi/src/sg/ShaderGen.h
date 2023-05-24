@@ -99,6 +99,7 @@ namespace gi::sg
       int32_t aovId;
       std::string_view baseFileName;
       bool isOpaque;
+      bool rayTracingPositionFetch;
       std::string_view shadingGlsl;
       uint32_t textureIndexOffset2d;
       uint32_t textureIndexOffset3d;
@@ -110,6 +111,7 @@ namespace gi::sg
       int32_t aovId;
       std::string_view baseFileName;
       std::string_view opacityEvalGlsl;
+      bool rayTracingPositionFetch;
       bool shadowTest;
       uint32_t textureIndexOffset2d;
       uint32_t textureIndexOffset3d;

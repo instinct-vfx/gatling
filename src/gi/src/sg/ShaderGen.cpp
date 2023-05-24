@@ -363,6 +363,12 @@ namespace gi::sg
 
     _sgGenerateCommonDefines(stitcher, params.texCount2d, params.texCount3d);
 
+    if (params.rayTracingPositionFetch)
+    {
+      stitcher.appendRequiredExtension("GL_EXT_ray_tracing_position_fetch");
+      stitcher.appendDefine("RT_POSITION_FETCH");
+    }
+
     stitcher.appendDefine("AOV_ID", params.aovId);
     stitcher.appendDefine("TEXTURE_INDEX_OFFSET_2D", (int32_t) params.textureIndexOffset2d);
     stitcher.appendDefine("TEXTURE_INDEX_OFFSET_3D", (int32_t) params.textureIndexOffset3d);
@@ -389,6 +395,12 @@ namespace gi::sg
     stitcher.appendVersion();
 
     _sgGenerateCommonDefines(stitcher, params.texCount2d, params.texCount3d);
+
+    if (params.rayTracingPositionFetch)
+    {
+      stitcher.appendRequiredExtension("GL_EXT_ray_tracing_position_fetch");
+      stitcher.appendDefine("RT_POSITION_FETCH");
+    }
 
     stitcher.appendDefine("AOV_ID", params.aovId);
     stitcher.appendDefine("TEXTURE_INDEX_OFFSET_2D", (int32_t) params.textureIndexOffset2d);

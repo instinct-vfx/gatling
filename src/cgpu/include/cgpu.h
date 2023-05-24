@@ -355,6 +355,7 @@ struct CgpuPhysicalDeviceFeatures
   bool debugPrintf;
   bool textureCompressionBC;
   bool pipelineStatisticsQuery;
+  bool rayTracingPositionFetch;
   bool shaderImageGatherExtended;
   bool shaderStorageImageExtendedFormats;
   bool shaderStorageImageReadWithoutFormat;

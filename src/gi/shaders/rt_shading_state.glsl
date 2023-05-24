@@ -8,9 +8,16 @@ void setup_mdl_shading_state(in uint hit_face_idx, in vec2 hit_bc, out State sta
     FVertex v_2 = vertices[f.v_2];
 
     // Position and geometry normal
-    vec3 p_0 = v_0.field1.xyz;
-    vec3 p_1 = v_1.field1.xyz;
-    vec3 p_2 = v_2.field1.xyz;
+    vec3 p_0, p_1, p_2;
+#ifdef RT_POSITION_FETCH
+    p_0 = gl_HitTriangleVertexPositionsEXT[0];
+    p_1 = gl_HitTriangleVertexPositionsEXT[1];
+    p_2 = gl_HitTriangleVertexPositionsEXT[2];
+#else
+    p_0 = v_0.field1.xyz;
+    p_1 = v_1.field1.xyz;
+    p_2 = v_2.field1.xyz;
+#endif
 
     vec3 localPos = bc.x * p_0 + bc.y * p_1 + bc.z * p_2;
     vec3 pos = vec3(gl_ObjectToWorldEXT * vec4(localPos, 1.0));

@@ -509,6 +509,13 @@ bool cgpuCreateDevice(CgpuDevice* device)
     enabledDeviceExtensions.push_back(VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME);
   }
 
+  const char* VK_KHR_RAY_TRACING_POSITION_FETCH_NAME = "VK_KHR_ray_tracing_position_fetch";
+  if (cgpuFindDeviceExtension(VK_KHR_RAY_TRACING_POSITION_FETCH_NAME, deviceExtCount, deviceExtensions.data()))
+  {
+    idevice->features.rayTracingPositionFetch = true;
+    enabledDeviceExtensions.push_back(VK_KHR_RAY_TRACING_POSITION_FETCH_NAME);
+  }
+
 #ifndef NDEBUG
   if (cgpuFindDeviceExtension(VK_KHR_SHADER_CLOCK_EXTENSION_NAME, deviceExtCount, deviceExtensions.data()) && features.shaderInt64)
   {
@@ -580,9 +587,19 @@ bool cgpuCreateDevice(CgpuDevice* device)
 
   void* pNext = nullptr;
 
+  VkPhysicalDeviceRayTracingPositionFetchFeaturesKHR rayTracingPositionFetchFeatures = {};
+  rayTracingPositionFetchFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_POSITION_FETCH_FEATURES_KHR;
+  rayTracingPositionFetchFeatures.pNext = pNext;
+  rayTracingPositionFetchFeatures.rayTracingPositionFetch = VK_TRUE;
+
+  if (idevice->features.rayTracingPositionFetch)
+  {
+    pNext = &rayTracingPositionFetchFeatures;
+  }
+
   VkPhysicalDevicePageableDeviceLocalMemoryFeaturesEXT pageableMemoryFeatures = {};
   pageableMemoryFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PAGEABLE_DEVICE_LOCAL_MEMORY_FEATURES_EXT;
-  pageableMemoryFeatures.pNext = nullptr;
+  pageableMemoryFeatures.pNext = pNext;
   pageableMemoryFeatures.pageableDeviceLocalMemory = VK_TRUE;
 
   if (idevice->features.pageableDeviceLocalMemory)
@@ -1983,12 +2000,18 @@ static bool cgpuCreateTopOrBottomAs(CgpuDevice device,
   CgpuIDevice* idevice;
   cgpuResolveDevice(device, &idevice);
 
+  VkBuildAccelerationStructureFlagsKHR asBuildGeomInfoFlags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
+  if (idevice->features.rayTracingPositionFetch && asType == VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR)
+  {
+    asBuildGeomInfoFlags |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_DATA_ACCESS_KHR;
+  }
+
   // Get AS size
   VkAccelerationStructureBuildGeometryInfoKHR asBuildGeomInfo = {};
   asBuildGeomInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
   asBuildGeomInfo.pNext = nullptr;
   asBuildGeomInfo.type = asType;
-  asBuildGeomInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
+  asBuildGeomInfo.flags = asBuildGeomInfoFlags;
   asBuildGeomInfo.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
   asBuildGeomInfo.srcAccelerationStructure = VK_NULL_HANDLE;
   asBuildGeomInfo.dstAccelerationStructure = VK_NULL_HANDLE; // set in second round

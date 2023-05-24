@@ -781,6 +781,7 @@ GiShaderCache* giCreateShaderCache(const GiShaderCacheParams* params)
         hitParams.aovId = params->aovId;
         hitParams.baseFileName = "rt_main.chit";
         hitParams.isOpaque = s_shaderGen->isMaterialOpaque(params->materials[i]->sgMat);
+        hitParams.rayTracingPositionFetch = s_deviceFeatures.rayTracingPositionFetch;
         hitParams.shadingGlsl = compInfo.closestHitInfo.genInfo.glslSource;
         hitParams.textureIndexOffset2d = compInfo.closestHitInfo.texOffset2d;
         hitParams.textureIndexOffset3d = compInfo.closestHitInfo.texOffset3d;
@@ -801,6 +802,7 @@ GiShaderCache* giCreateShaderCache(const GiShaderCacheParams* params)
         hitParams.aovId = params->aovId;
         hitParams.baseFileName = "rt_main.ahit";
         hitParams.opacityEvalGlsl = compInfo.anyHitInfo->genInfo.glslSource;
+        hitParams.rayTracingPositionFetch = s_deviceFeatures.rayTracingPositionFetch;
         hitParams.textureIndexOffset2d = compInfo.anyHitInfo->texOffset2d;
         hitParams.textureIndexOffset3d = compInfo.anyHitInfo->texOffset3d;
         hitParams.texCount2d = texCount2d;
