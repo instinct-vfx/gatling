@@ -63,7 +63,8 @@ PXR_NAMESPACE_OPEN_SCOPE
   ((debug_clock_cycles, "debug:clock_cycles"))       \
   ((debug_opacity, "debug:opacity"))                 \
   ((debug_tangents, "debug:tangents"))               \
-  ((debug_bitangents, "debug:bitangents"))
+  ((debug_bitangents, "debug:bitangents"))           \
+  ((debug_thin_walled, "debug:thin_walled"))
 
 TF_DECLARE_PUBLIC_TOKENS(HdGatlingSettingsTokens, HD_GATLING_SETTINGS_TOKENS);
 TF_DECLARE_PUBLIC_TOKENS(HdGatlingNodeIdentifiers, HD_GATLING_NODE_IDENTIFIER_TOKENS);

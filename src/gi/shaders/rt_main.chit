@@ -61,7 +61,15 @@ void main()
     const float ior1 = (inside && !thin_walled) ? BSDF_USE_MATERIAL_IOR : 1.0;
     const float ior2 = (inside && !thin_walled) ? 1.0 : BSDF_USE_MATERIAL_IOR;
 
-#if AOV_ID == AOV_ID_DEBUG_OPACITY
+#if AOV_ID == AOV_ID_DEBUG_THIN_WALLED
+#ifdef THIN_WALLED
+    rayPayload.radiance = thin_walled ? f16vec3(0.0, 1.0, 0.0) : f16vec3(1.0, 1.0, 0.0);
+#else
+    rayPayload.radiance = f16vec3(1.0, 0.0, 0.0);
+#endif
+    rayPayload.bitfield = uint16_t(0xFFFFu);
+    return;
+#elif AOV_ID == AOV_ID_DEBUG_OPACITY
 #ifdef IS_OPAQUE
     rayPayload.radiance = f16vec3(1.0, 0.0, 0.0); // Distinct from viridis heatmap
     rayPayload.bitfield = uint16_t(0xFFFFu);
