@@ -38,6 +38,7 @@ namespace gi::sg
     mi::base::Handle<mi::neuraylib::ICompiled_material> compiledMaterial;
     bool isEmissive;
     bool isOpaque;
+    bool isThinWalled;
     std::string resourcePathPrefix;
   };
 
@@ -119,6 +120,21 @@ namespace gi::sg
     return compiledMaterial->get_opacity() == mi::neuraylib::OPACITY_OPAQUE;
   }
 
+  bool _sgIsMaterialThinWalled(mi::base::Handle<mi::neuraylib::ICompiled_material> compiledMaterial)
+  {
+    mi::base::Handle<const mi::neuraylib::IExpression> thinWalledExpr(compiledMaterial->lookup_sub_expression("thin_walled"));
+
+    if (thinWalledExpr->get_kind() != mi::neuraylib::IExpression::EK_CONSTANT)
+    {
+      return true;
+    }
+
+    mi::base::Handle<const mi::neuraylib::IExpression_constant> thinWalledConst(thinWalledExpr->get_interface<const mi::neuraylib::IExpression_constant>());
+    mi::base::Handle<const mi::neuraylib::IValue_bool> thinWalledBool(thinWalledConst->get_value<mi::neuraylib::IValue_bool>());
+
+    return thinWalledBool->get_value();
+  }
+
   Material* ShaderGen::createMaterialFromMtlxStr(std::string_view docStr)
   {
     std::string mdlSrc;
@@ -138,6 +154,7 @@ namespace gi::sg
     Material* m = new Material();
     m->compiledMaterial = compiledMaterial;
     m->isEmissive = _sgIsMaterialEmissive(compiledMaterial);
+    m->isThinWalled = _sgIsMaterialThinWalled(compiledMaterial);
     m->isOpaque = isOpaque;
     return m;
   }
@@ -162,6 +179,7 @@ namespace gi::sg
     Material* m = new Material();
     m->compiledMaterial = compiledMaterial;
     m->isEmissive = _sgIsMaterialEmissive(compiledMaterial);
+    m->isThinWalled = _sgIsMaterialThinWalled(compiledMaterial);
     m->isOpaque = isOpaque;
     return m;
   }
@@ -180,6 +198,7 @@ namespace gi::sg
     m->compiledMaterial = compiledMaterial;
     m->isEmissive = _sgIsMaterialEmissive(compiledMaterial);
     m->isOpaque = _sgIsMaterialOpaque(compiledMaterial);
+    m->isThinWalled = _sgIsMaterialThinWalled(compiledMaterial);
     m->resourcePathPrefix = resourcePathPrefix;
     return m;
   }
@@ -294,7 +313,8 @@ namespace gi::sg
   bool _genInfoFromCodeGenResult(const MdlGlslCodeGenResult& codeGenResult,
                                  const std::string& resourcePathPrefix,
                                  fs::path shaderPath,
-                                 ShaderGen::MaterialGlslGenInfo& genInfo)
+                                 ShaderGen::MaterialGlslGenInfo& genInfo,
+                                 bool thinWalledMaterial)
   {
     // Append resource path prefix for file-backed MDL modules.
     genInfo.textureResources = codeGenResult.textureResources;
@@ -315,6 +335,10 @@ namespace gi::sg
     glslSource = glslSource.substr(mdlCodeOffset, glslSource.size() - mdlCodeOffset);
 
     GlslSourceStitcher stitcher;
+    if (thinWalledMaterial)
+    {
+      stitcher.appendDefine("THIN_WALLED");
+    }
     if (!stitcher.appendSourceFile(shaderPath / "mdl_types.glsl"))
     {
       return false;
@@ -335,12 +359,12 @@ namespace gi::sg
     const mi::neuraylib::ICompiled_material* compiledMaterial = material->compiledMaterial.get();
 
     MdlGlslCodeGenResult codeGenResult;
-    if (!m_mdlGlslCodeGen->genMaterialShadingCode(compiledMaterial, codeGenResult))
+    if (!m_mdlGlslCodeGen->genMaterialShadingCode(compiledMaterial, material->isThinWalled, codeGenResult))
     {
       return false;
     }
 
-    return _genInfoFromCodeGenResult(codeGenResult, material->resourcePathPrefix, m_shaderPath, genInfo);
+    return _genInfoFromCodeGenResult(codeGenResult, material->resourcePathPrefix, m_shaderPath, genInfo, material->isThinWalled);
   }
 
   bool ShaderGen::generateMaterialOpacityGenInfo(const Material* material, MaterialGlslGenInfo& genInfo)
@@ -353,7 +377,7 @@ namespace gi::sg
       return false;
     }
 
-    return _genInfoFromCodeGenResult(codeGenResult, material->resourcePathPrefix, m_shaderPath, genInfo);
+    return _genInfoFromCodeGenResult(codeGenResult, material->resourcePathPrefix, m_shaderPath, genInfo, false);
   }
 
   bool ShaderGen::generateClosestHitSpirv(const ClosestHitShaderParams& params, std::vector<uint8_t>& spv)

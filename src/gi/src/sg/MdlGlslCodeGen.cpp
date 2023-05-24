@@ -30,10 +30,13 @@ namespace gi::sg
   const char* SCATTERING_FUNC_NAME = "mdl_bsdf_scattering";
   const char* EMISSION_FUNC_NAME = "mdl_edf_emission";
   const char* EMISSION_INTENSITY_FUNC_NAME = "mdl_edf_emission_intensity";
-  const char* THIN_WALLED_FUNC_NAME = "mdl_thin_walled";
   const char* VOLUME_ABSORPTION_FUNC_NAME = "mdl_absorption_coefficient";
   const char* CUTOUT_OPACITY_FUNC_NAME = "mdl_cutout_opacity";
   const char* MATERIAL_STATE_NAME = "State";
+  const char* THIN_WALLED_FUNC_NAME = "mdl_thin_walled";
+  const char* BACKFACE_SCATTERING_FUNC_NAME = "mdl_backface_bsdf_scattering";
+  const char* BACKFACE_EMISSION_FUNC_NAME = "mdl_backface_edf_emission";
+  const char* BACKFACE_EMISSION_INTENSITY_FUNC_NAME = "mdl_backface_edf_emission_intensity";
 
   bool MdlGlslCodeGen::init(MdlRuntime& runtime)
   {
@@ -60,14 +63,22 @@ namespace gi::sg
   }
 
   bool MdlGlslCodeGen::genMaterialShadingCode(const mi::neuraylib::ICompiled_material* material,
+                                              bool thinWalled,
                                               MdlGlslCodeGenResult& result)
   {
     std::vector<mi::neuraylib::Target_function_description> genFunctions;
     genFunctions.push_back(mi::neuraylib::Target_function_description("surface.scattering", SCATTERING_FUNC_NAME));
     genFunctions.push_back(mi::neuraylib::Target_function_description("surface.emission.emission", EMISSION_FUNC_NAME));
     genFunctions.push_back(mi::neuraylib::Target_function_description("surface.emission.intensity", EMISSION_INTENSITY_FUNC_NAME));
-    genFunctions.push_back(mi::neuraylib::Target_function_description("thin_walled", THIN_WALLED_FUNC_NAME));
     genFunctions.push_back(mi::neuraylib::Target_function_description("volume.absorption_coefficient", VOLUME_ABSORPTION_FUNC_NAME));
+
+    if (thinWalled)
+    {
+      genFunctions.push_back(mi::neuraylib::Target_function_description("thin_walled", THIN_WALLED_FUNC_NAME));
+      genFunctions.push_back(mi::neuraylib::Target_function_description("backface.scattering", BACKFACE_SCATTERING_FUNC_NAME));
+      genFunctions.push_back(mi::neuraylib::Target_function_description("backface.emission.emission", BACKFACE_EMISSION_FUNC_NAME));
+      genFunctions.push_back(mi::neuraylib::Target_function_description("backface.emission.intensity", BACKFACE_EMISSION_INTENSITY_FUNC_NAME));
+    }
 
     return generateGlslWithDfs(material, genFunctions, result.glslSource, result.textureResources);
   }

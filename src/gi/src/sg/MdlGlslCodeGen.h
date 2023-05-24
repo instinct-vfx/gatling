@@ -47,6 +47,7 @@ namespace gi::sg
     bool init(MdlRuntime& runtime);
 
     bool genMaterialShadingCode(const mi::neuraylib::ICompiled_material* material,
+                                bool thinWalled,
                                 MdlGlslCodeGenResult& result);
 
     bool genMaterialOpacityCode(const mi::neuraylib::ICompiled_material* material,

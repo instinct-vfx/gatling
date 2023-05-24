@@ -53,7 +53,11 @@ void main()
     uint bounce = (rayPayload.bitfield & 0x7FFFu);
     bool inside = bool(rayPayload.bitfield & 0x8000u);
 
-    const bool thin_walled = mdl_thin_walled(shading_state);
+    bool thin_walled = false;
+#ifdef THIN_WALLED
+    thin_walled = mdl_thin_walled(shading_state);
+#endif
+    const bool is_backface = inside && thin_walled;
     const float ior1 = (inside && !thin_walled) ? BSDF_USE_MATERIAL_IOR : 1.0;
     const float ior2 = (inside && !thin_walled) ? 1.0 : BSDF_USE_MATERIAL_IOR;
 
@@ -100,12 +104,34 @@ void main()
     {
         Edf_evaluate_data edf_evaluate_data;
         edf_evaluate_data.k1 = -gl_WorldRayDirectionEXT;
-        mdl_edf_emission_init(shading_state);
-        mdl_edf_emission_evaluate(edf_evaluate_data, shading_state);
+
+#ifdef THIN_WALLED
+        if (is_backface)
+        {
+            mdl_backface_edf_emission_init(shading_state);
+            mdl_backface_edf_emission_evaluate(edf_evaluate_data, shading_state);
+        }
+        else
+#endif
+        {
+            mdl_edf_emission_init(shading_state);
+            mdl_edf_emission_evaluate(edf_evaluate_data, shading_state);
+        }
 
         if (edf_evaluate_data.pdf > 0.0)
         {
-            vec3 emission_intensity = mdl_edf_emission_intensity(shading_state);
+            vec3 emission_intensity;
+
+#ifdef THIN_WALLED
+            if (is_backface)
+            {
+                emission_intensity = mdl_backface_edf_emission_intensity(shading_state);
+            }
+            else
+#endif
+            {
+                emission_intensity = mdl_edf_emission_intensity(shading_state);
+            }
 
             radiance += throughput * edf_evaluate_data.edf * emission_intensity;
         }
@@ -151,20 +177,32 @@ void main()
         bsdf_sample_data.xi[2] = rng_next(rayPayload.rng_state);
         bsdf_sample_data.xi[3] = rng_next(rayPayload.rng_state);
 #endif
-        mdl_bsdf_scattering_init(shading_state);
-        mdl_bsdf_scattering_sample(bsdf_sample_data, shading_state);
+
+#ifdef THIN_WALLED
+        if (is_backface)
+        {
+            mdl_backface_bsdf_scattering_init(shading_state);
+            mdl_backface_bsdf_scattering_sample(bsdf_sample_data, shading_state);
+        }
+        else
+#endif
+        {
+            mdl_bsdf_scattering_init(shading_state);
+            mdl_bsdf_scattering_sample(bsdf_sample_data, shading_state);
+        }
 
         terminateRay = (bsdf_sample_data.event_type == BSDF_EVENT_ABSORB);
         throughput *= bsdf_sample_data.bsdf_over_pdf;
 
-        bool is_transmission = (bsdf_sample_data.event_type & BSDF_EVENT_TRANSMISSION) != 0;
-        if (is_transmission)
+        bool exit_at_back = (bsdf_sample_data.event_type & BSDF_EVENT_TRANSMISSION) != 0;
+
+        if (exit_at_back && !thin_walled)
         {
             inside = !inside;
         }
 
         rayPayload.ray_dir = bsdf_sample_data.k2;
-        rayPayload.ray_origin = offset_ray_origin(shading_state.position, shading_state.geom_normal * (is_transmission ? -1.0 : 1.0));
+        rayPayload.ray_origin = offset_ray_origin(shading_state.position, shading_state.geom_normal * (exit_at_back ? -1.0 : 1.0));
     }
 
     uint bitfield = (uint(inside) << 15) | (bounce + 1);
