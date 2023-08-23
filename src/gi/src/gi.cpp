@@ -113,6 +113,56 @@ struct GiRectLight
   uint64_t gpuHandle;
 };
 
+typedef uint32_t GiSceneDirtyFlags;
+
+enum GiSceneDirtyFlagBits : uint32_t
+{
+  GI_SCENE_DIRTY_FLAG_BIT_RGEN              = (1 <<  0),
+  GI_SCENE_DIRTY_FLAG_BIT_SHADE_MISS        = (1 <<  1),
+  GI_SCENE_DIRTY_FLAG_BIT_SHADE_CLOSEST_HIT = (1 <<  2),
+  GI_SCENE_DIRTY_FLAG_BIT_SHADE_ANY_HIT     = (1 <<  3),
+  GI_SCENE_DIRTY_FLAG_BIT_SHADOW_MISS       = (1 <<  4),
+  GI_SCENE_DIRTY_FLAG_BIT_SHADOW_ANY_HIT    = (1 <<  5),
+  GI_SCENE_DIRTY_FLAG_BIT_AOV               = (1 <<  6),
+  GI_SCENE_DIRTY_FLAG_BIT_DOME_LIGHT        = (1 <<  7),
+  GI_SCENE_DIRTY_FLAG_BIT_BLAS              = (1 <<  8),
+  GI_SCENE_DIRTY_FLAG_BIT_TLAS              = (1 <<  9),
+  GI_SCENE_DIRTY_FLAG_BIT_MATERIAL          = (1 << 10),
+  GI_SCENE_DIRTY_FLAG_BIT_LIGHT             = (1 << 11),
+};
+const static uint32_t GI_SCENE_DIRTY_FLAGS_PIPELINE_MASK = ~(~0u << GI_SCENE_DIRTY_FLAG_BIT_SHADOW_ANY_HIT);
+
+uint32_t _FlagRenderParamsSceneDirtyBits(const GiScene* scene, const GiRenderParams* params)
+{
+  const auto& lastParams = scene->lastFrameRenderParams;
+
+  GiSceneDirtyFlags dirtyFlags = 0;
+
+  if (params->aovId != scene->aovId)
+  {
+    dirtyFlags |= GI_SCENE_DIRTY_FLAG_BIT_RGEN | GI_SCENE_DIRTY_FLAG_BIT_SHADE_CLOSEST_HIT;
+  }
+  if ((bool(params->domeLight) != bool(scene->domeLight)) || params->domeLightCameraVisibility != scene->domeLightCameraVisibility)
+  {
+    dirtyFlags |= GI_SCENE_DIRTY_FLAGS_PIPELINE_MASK;
+  }
+  if (params->filterImportanceSampling != scene->filterImportanceSampling ||
+      params->progressiveAccumulation != scene->progressiveAccumulation ||
+      params->depthOfField != scene->depthOfField)
+  {
+    dirtyFlags |= GI_SCENE_DIRTY_FLAG_BIT_RGEN;
+  }
+  if (params->nextEventEstimation != scene->nextEventEstimation)
+  {
+    dirtyFlags |= GI_SCENE_DIRTY_FLAGS_PIPELINE_MASK;
+  }
+
+  // All other params are updated as push constants.
+
+  return dirtyFlags;
+}
+
+// TODO: rename to GiDevice (since it will also contain framebuffer mem, AOV ID, ...)
 struct GiScene
 {
   GgpuDenseDataStore sphereLights;
@@ -121,6 +171,7 @@ struct GiScene
   CgpuImage domeLightTexture;
   glm::mat3 domeLightTransform;
   GiDomeLight* domeLight; // weak ptr
+  GiSceneDirtyFlags dirtyFlags = UINT32_MAX;
 };
 
 struct GiDomeLight
