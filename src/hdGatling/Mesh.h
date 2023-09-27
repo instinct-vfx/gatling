@@ -34,6 +34,8 @@ public:
     bool indexed;
   };
 
+  using MaterialIndicesMap = TfHashMap<SdfPath, VtVec3iArray, TfHash>;
+
 public:
   HdGatlingMesh(const SdfPath& id);
 
@@ -48,7 +50,7 @@ public:
   HdDirtyBits GetInitialDirtyBitsMask() const override;
 
   bool IsDoubleSided() const;
-  const VtVec3iArray& GetFaces() const;
+  const MaterialIndicesMap& GetFaces() const;
   const VtVec3fArray& GetPoints() const;
   const VertexAttr<GfVec3f>& GetNormals() const;
   const VertexAttr<GfVec2f>& GetTexCoords() const;
@@ -90,7 +92,7 @@ private:
 
 private:
   GfMatrix4d m_prototypeTransform;
-  VtVec3iArray m_faces;
+  MaterialIndicesMap m_geomSubsets;
   VtVec3fArray m_points;
   VertexAttr<GfVec3f> m_normals;
   VertexAttr<GfVec2f> m_texCoords;

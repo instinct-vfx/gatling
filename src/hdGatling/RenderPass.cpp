@@ -341,15 +341,14 @@ GiVertex _MakeGiVertex(GfMatrix4d transform, GfMatrix4d normalMatrix, const GfVe
   return vertex;
 }
 
-void HdGatlingRenderPass::_BakeMeshGeometry(const HdGatlingMesh* mesh,
-                                            GfMatrix4d transform,
-                                            uint32_t materialIndex,
-                                            std::vector<GiFace>& faces,
-                                            std::vector<GiVertex>& vertices) const
+void HdGatlingRenderPass::_BakeGeomSubset(const HdGatlingMesh* mesh,
+                                          const VtVec3iArray& subsetFaces,
+                                          const GfMatrix4d& transform,
+                                          std::vector<GiFace>& faces,
+                                          std::vector<GiVertex>& vertices) const
 {
   GfMatrix4d normalMatrix = transform.GetInverse().GetTranspose();
 
-  const VtVec3iArray& meshFaces = mesh->GetFaces();
   const VtVec3fArray& meshPoints = mesh->GetPoints();
   const auto& meshNormals = mesh->GetNormals();
   const auto& meshTexCoords = mesh->GetTexCoords();
@@ -375,15 +374,15 @@ void HdGatlingRenderPass::_BakeMeshGeometry(const HdGatlingMesh* mesh,
   }
   if (calcTangents)
   {
-    _CalculateTangents(meshFaces, meshPoints, meshNormals, meshTexCoords, meshTangents, meshBitangentSigns);
+    _CalculateTangents(subsetFaces, meshPoints, meshNormals, meshTexCoords, meshTangents, meshBitangentSigns);
   }
 
   bool isAnyPrimvarNotIndexed = !meshNormals.indexed || !meshTexCoords.indexed || !meshTangents.indexed;
   uint32_t vertexOffset = vertices.size();
 
-  for (size_t i = 0; i < meshFaces.size(); i++)
+  for (size_t i = 0; i < subsetFaces.size(); i++)
   {
-    const GfVec3i& vertexIndices = meshFaces[i];
+    const GfVec3i& vertexIndices = subsetFaces[i];
 
     GiFace face;
     face.v_i[0] = vertexOffset + (isAnyPrimvarNotIndexed ? (i * 3 + 0) : vertexIndices[0]);
@@ -458,6 +457,91 @@ void HdGatlingRenderPass::_BakeMeshes(HdRenderIndex* renderIndex,
       continue;
     }
 
+    const HdGatlingMesh::MaterialIndicesMap& geomSubsets = mesh->GetFaces();
+
+    std::vector<const GiMesh*> subsetMeshes;
+    subsetMeshes.reserve(geomSubsets.size());
+
+    for (const auto& subsetMaterialIndicesPair : geomSubsets)
+    {
+      const SdfPath& materialId = subsetMaterialIndicesPair.first;
+      std::string materialIdStr = materialId.GetAsString();
+
+      uint32_t materialIndex = 0;
+      if (!materialId.IsEmpty() && materialMap.find(materialIdStr) != materialMap.end())
+      {
+        materialIndex = materialMap[materialIdStr];
+      }
+      else
+      {
+        HdSprim* sprim = renderIndex->GetSprim(HdPrimTypeTokens->material, materialId);
+        HdGatlingMaterial* material = static_cast<HdGatlingMaterial*>(sprim);
+
+        GiMaterial* giMat = nullptr;
+        if (material)
+        {
+          const HdMaterialNetwork2* network = material->GetNetwork();
+
+          if (network)
+          {
+            giMat = m_materialNetworkTranslator.ParseNetwork(sprim->GetId(), *network);
+
+            if (giMat)
+            {
+              m_materials.push_back(giMat);
+            }
+          }
+        }
+
+        if (!giMat && mesh->HasColor())
+        {
+          // Try to reuse color material by including the RGB value in the name
+          const GfVec3f& color = mesh->GetColor();
+          materialIdStr = TfStringPrintf("color_%f_%f_%f", color[0], color[1], color[2]);
+          std::replace(materialIdStr.begin(), materialIdStr.end(), '.', '_'); // _1.9_ -> _1_9_
+
+          if (materialMap.find(materialIdStr) != materialMap.end())
+          {
+            materialIndex = materialMap[materialIdStr];
+          }
+          else
+          {
+            std::string colorMatSrc = _MakeMaterialXColorMaterialSrc(color, materialIdStr.c_str());
+            GiMaterial* giColorMat = giCreateMaterialFromMtlxStr(colorMatSrc.c_str());
+            if (giColorMat)
+            {
+              m_materials.push_back(giColorMat);
+              giMat = giColorMat;
+            }
+          }
+        }
+
+        if (giMat)
+        {
+          materialIndex = materials.size();
+          materials.push_back(giMat);
+          materialMap[materialIdStr] = materialIndex;
+        }
+      }
+
+      std::vector<GiFace> faces;
+      std::vector<GiVertex> vertices;
+      _BakeGeomSubset(mesh, subsetMaterialIndicesPair.second, GfMatrix4d(1.0), faces, vertices);
+
+      GiMeshDesc desc = {0};
+      desc.faceCount = faces.size();
+      desc.faces = faces.data();
+      desc.material = materials[materialIndex];
+      desc.vertexCount = vertices.size();
+      desc.vertices = vertices.data();
+
+      GiMesh* giMesh = giCreateMesh(&desc);
+      assert(giMesh);
+
+      subsetMeshes.push_back(giMesh);
+      meshes.push_back(giMesh);
+    }
+
     VtMatrix4dArray transforms;
     const SdfPath& instancerId = mesh->GetInstancerId();
 
@@ -475,81 +559,6 @@ void HdGatlingRenderPass::_BakeMeshes(HdRenderIndex* renderIndex,
       transforms = instancer->ComputeInstanceTransforms(meshId);
     }
 
-    const SdfPath& materialId = mesh->GetMaterialId();
-    std::string materialIdStr = materialId.GetAsString();
-
-    uint32_t materialIndex = 0;
-    if (!materialId.IsEmpty() && materialMap.find(materialIdStr) != materialMap.end())
-    {
-      materialIndex = materialMap[materialIdStr];
-    }
-    else
-    {
-      HdSprim* sprim = renderIndex->GetSprim(HdPrimTypeTokens->material, materialId);
-      HdGatlingMaterial* material = static_cast<HdGatlingMaterial*>(sprim);
-
-      GiMaterial* giMat = nullptr;
-      if (material)
-      {
-        const HdMaterialNetwork2* network = material->GetNetwork();
-
-        if (network)
-        {
-          giMat = m_materialNetworkTranslator.ParseNetwork(sprim->GetId(), *network);
-
-          if (giMat)
-          {
-            m_materials.push_back(giMat);
-          }
-        }
-      }
-
-      if (!giMat && mesh->HasColor())
-      {
-        // Try to reuse color material by including the RGB value in the name
-        const GfVec3f& color = mesh->GetColor();
-        materialIdStr = TfStringPrintf("color_%f_%f_%f", color[0], color[1], color[2]);
-        std::replace(materialIdStr.begin(), materialIdStr.end(), '.', '_'); // _1.9_ -> _1_9_
-
-        if (materialMap.find(materialIdStr) != materialMap.end())
-        {
-          materialIndex = materialMap[materialIdStr];
-        }
-        else
-        {
-          std::string colorMatSrc = _MakeMaterialXColorMaterialSrc(color, materialIdStr.c_str());
-          GiMaterial* giColorMat = giCreateMaterialFromMtlxStr(colorMatSrc.c_str());
-          if (giColorMat)
-          {
-            m_materials.push_back(giColorMat);
-            giMat = giColorMat;
-          }
-        }
-      }
-
-      if (giMat)
-      {
-        materialIndex = materials.size();
-        materials.push_back(giMat);
-        materialMap[materialIdStr] = materialIndex;
-      }
-    }
-
-    std::vector<GiFace> faces;
-    std::vector<GiVertex> vertices;
-    _BakeMeshGeometry(mesh, GfMatrix4d(1.0), materialIndex, faces, vertices);
-
-    GiMeshDesc desc = {0};
-    desc.faceCount = faces.size();
-    desc.faces = faces.data();
-    desc.material = materials[materialIndex];
-    desc.vertexCount = vertices.size();
-    desc.vertices = vertices.data();
-
-    GiMesh* giMesh = giCreateMesh(&desc);
-    assert(giMesh);
-    meshes.push_back(giMesh);
-
     const GfMatrix4d& prototypeTransform = mesh->GetPrototypeTransform();
     for (size_t i = 0; i < transforms.size(); i++)
     {
@@ -561,10 +570,13 @@ void HdGatlingRenderPass::_BakeMeshes(HdRenderIndex* renderIndex,
         (float) T[0][2], (float) T[1][2], (float) T[2][2], (float) T[3][2]
       };
 
-      GiMeshInstance instance;
-      instance.mesh = giMesh;
-      memcpy(instance.transform, instanceTransform, sizeof(instanceTransform));
-      instances.push_back(instance);
+      for (const GiMesh* giMesh : subsetMeshes)
+      {
+        GiMeshInstance instance;
+        instance.mesh = giMesh;
+        memcpy(instance.transform, instanceTransform, sizeof(instanceTransform));
+        instances.push_back(instance);
+      }
     }
   }
 }

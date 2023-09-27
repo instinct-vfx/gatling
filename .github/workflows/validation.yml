@@ -5,6 +5,7 @@ on:
     branches:
       - 'master'
       - 'dev'
+      - 'wip/geomsubsets'
     paths-ignore:
       - '**.md'
       - '**.glsl'

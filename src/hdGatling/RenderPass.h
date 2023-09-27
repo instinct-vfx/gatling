@@ -48,11 +48,11 @@ protected:
                 const TfTokenVector& renderTags) override;
 
 private:
-  void _BakeMeshGeometry(const HdGatlingMesh* mesh,
-                         GfMatrix4d transform,
-                         uint32_t materialIndex,
-                         std::vector<GiFace>& faces,
-                         std::vector<GiVertex>& vertices) const;
+  void _BakeGeomSubset(const HdGatlingMesh* mesh,
+                       const VtVec3iArray& subsetFaces,
+                       const GfMatrix4d& transform,
+                       std::vector<GiFace>& faces,
+                       std::vector<GiVertex>& vertices) const;
 
   void _BakeMeshes(HdRenderIndex* renderIndex,
                    GfMatrix4d rootTransform,

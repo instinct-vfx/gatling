@@ -115,7 +115,7 @@ void HdGatlingMesh::Sync(HdSceneDelegate* sceneDelegate,
     return;
   }
 
-  m_faces = {};
+  m_geomSubsets = {};
   m_points = {};
   m_normals = {};
   m_texCoords = {};
@@ -129,8 +129,29 @@ void HdGatlingMesh::_UpdateGeometry(HdSceneDelegate* sceneDelegate)
   const SdfPath& id = GetId();
   HdMeshUtil meshUtil(&topology, id);
 
+  VtVec3iArray triangulatedFaces;
   VtIntArray primitiveParams;
-  meshUtil.ComputeTriangleIndices(&m_faces, &primitiveParams);
+  meshUtil.ComputeTriangleIndices(&triangulatedFaces, &primitiveParams);
+
+  // Extract material bindings from geometry subsets.
+  std::vector<SdfPath> oldFaceMaterials(topology.GetNumFaces(), GetMaterialId());
+
+  for (const HdGeomSubset& geomSubset : topology.GetGeomSubsets())
+  {
+    for (int i : geomSubset.indices)
+    {
+      oldFaceMaterials[i] = geomSubset.materialId;
+    }
+  }
+
+  for (int faceIndex = 0; faceIndex < primitiveParams.size(); faceIndex++)
+  {
+    int oldFaceIndex = HdMeshUtil::DecodeFaceIndexFromCoarseFaceParam(primitiveParams[faceIndex]);
+
+    const SdfPath& material = oldFaceMaterials[oldFaceIndex];
+
+    m_geomSubsets[material].push_back(triangulatedFaces[faceIndex]);
+  }
 
   _PullPrimvars(sceneDelegate, primitiveParams, m_color, m_hasColor);
 }
@@ -467,9 +488,9 @@ bool HdGatlingMesh::IsDoubleSided() const
   return m_doubleSided;
 }
 
-const VtVec3iArray& HdGatlingMesh::GetFaces() const
+const HdGatlingMesh::MaterialIndicesMap& HdGatlingMesh::GetFaces() const
 {
-  return m_faces;
+  return m_geomSubsets;
 }
 
 const VtVec3fArray& HdGatlingMesh::GetPoints() const
