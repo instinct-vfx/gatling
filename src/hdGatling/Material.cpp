@@ -24,6 +24,7 @@ PXR_NAMESPACE_OPEN_SCOPE
 HdGatlingMaterial::HdGatlingMaterial(const SdfPath& id)
   : HdMaterial(id)
 {
+  TF_WARN("material construction %s\n", id.GetText());
 }
 
 HdGatlingMaterial::~HdGatlingMaterial()
@@ -32,7 +33,7 @@ HdGatlingMaterial::~HdGatlingMaterial()
 
 HdDirtyBits HdGatlingMaterial::GetInitialDirtyBitsMask() const
 {
-  return DirtyBits::DirtyParams;
+  return DirtyBits::AllDirty;
 }
 
 void HdGatlingMaterial::Sync(HdSceneDelegate* sceneDelegate,
@@ -40,6 +41,9 @@ void HdGatlingMaterial::Sync(HdSceneDelegate* sceneDelegate,
                              HdDirtyBits* dirtyBits)
 {
   TF_UNUSED(renderParam);
+
+  const SdfPath& id = GetId();
+  TF_WARN("synching %s\n", id.GetText());
 
   bool pullMaterial = (*dirtyBits & DirtyBits::DirtyParams);
 
@@ -50,7 +54,6 @@ void HdGatlingMaterial::Sync(HdSceneDelegate* sceneDelegate,
     return;
   }
 
-  const SdfPath& id = GetId();
   const VtValue& resource = sceneDelegate->GetMaterialResource(id);
 
   if (!resource.IsHolding<HdMaterialNetworkMap>())

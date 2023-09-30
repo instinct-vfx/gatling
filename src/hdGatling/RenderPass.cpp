@@ -492,6 +492,10 @@ void HdGatlingRenderPass::_BakeMeshes(HdRenderIndex* renderIndex,
             }
           }
         }
+        else
+        {
+          TF_WARN("can't find material %s\n", materialId.GetText());
+        }
 
         if (!giMat && mesh->HasColor())
         {

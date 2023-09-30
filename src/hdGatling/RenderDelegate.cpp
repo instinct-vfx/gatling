@@ -155,6 +155,7 @@ HdRprim* HdGatlingRenderDelegate::CreateRprim(const TfToken& typeId, const SdfPa
   {
     return new HdGatlingMesh(rprimId);
   }
+  else TF_WARN("can't instantiate %s %s\n", typeId.GetText(), rprimId.GetText());
 
   return nullptr;
 }
@@ -210,6 +211,7 @@ HdSprim* HdGatlingRenderDelegate::CreateSprim(const TfToken& typeId, const SdfPa
   {
     return new HdGatlingSimpleLight(sprimId, m_giScene);
   }
+  else TF_WARN("can't instantiate %s %s\n", typeId.GetText(), sprimId.GetText());
 
   return nullptr;
 }
@@ -242,6 +244,7 @@ HdBprim* HdGatlingRenderDelegate::CreateBprim(const TfToken& typeId, const SdfPa
   {
     return new HdGatlingRenderBuffer(bprimId);
   }
+  else TF_WARN("can't instantiate %s %s\n", typeId.GetText(), bprimId.GetText());
 
   return nullptr;
 }
