@@ -102,9 +102,14 @@ struct PushConstants
   /* 3 floats free */
 };
 
+struct BlasPayloadBufferPreamble
+{
+  GI_INT unused[8];
+};
+
 struct BlasPayload
 {
-  GI_UINT64 indexVertexBuffer;
+  GI_UINT64 bufferAddress;
   GI_UINT   vertexOffset;
   GI_UINT   unusedBitFlags;
 };

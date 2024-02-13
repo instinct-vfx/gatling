@@ -73,7 +73,7 @@ namespace gtl
   struct GiBlas
   {
     CgpuBlas blas;
-    CgpuBuffer indexVertexBuffer;
+    CgpuBuffer payloadBuffer;
   };
 
   struct GiGeomCache
@@ -514,6 +514,10 @@ namespace gtl
           continue;
         }
 
+        // Payload buffer preamble
+        rp::BlasPayloadBufferPreamble preamble;
+        uint32_t preambleSize = sizeof(rp::BlasPayloadBufferPreamble);
+
         // Collect vertices
         std::vector<rp::FVertex> vertexData;
         std::vector<CgpuVertex> positionData;
@@ -550,13 +554,14 @@ namespace gtl
         CgpuBlas blas;
         CgpuBuffer tmpPositionBuffer;
         CgpuBuffer tmpIndexBuffer;
-        CgpuBuffer indexVertexBuffer;
+        CgpuBuffer payloadBuffer;
 
         uint64_t indicesSize = indexData.size() * sizeof(uint32_t);
         uint64_t verticesSize = vertexData.size() * sizeof(rp::FVertex);
 
-        uint64_t indexVertexBufferSize = indicesSize;
-        uint64_t vertexBufferOffset = giAlignBuffer(sizeof(rp::FVertex), verticesSize, &indexVertexBufferSize);
+        uint64_t payloadBufferSize = preambleSize;
+        uint64_t indexBufferOffset = giAlignBuffer(sizeof(rp::FVertex), indicesSize, &payloadBufferSize);
+        uint64_t vertexBufferOffset = giAlignBuffer(sizeof(rp::FVertex), verticesSize, &payloadBufferSize);
 
         uint64_t tmpIndexBufferSize = indicesSize;
         uint64_t tmpPositionBufferSize = positionData.size() * sizeof(CgpuVertex);
@@ -565,11 +570,11 @@ namespace gtl
         if (!cgpuCreateBuffer(s_device, {
                                 .usage = CGPU_BUFFER_USAGE_FLAG_SHADER_DEVICE_ADDRESS | CGPU_BUFFER_USAGE_FLAG_TRANSFER_DST,
                                 .memoryProperties = CGPU_MEMORY_PROPERTY_FLAG_DEVICE_LOCAL,
-                                .size = indexVertexBufferSize,
-                                .debugName = "BlasIndexVertexBuffer"
-                              }, &indexVertexBuffer))
+                                .size = payloadBufferSize,
+                                .debugName = "BlasPayloadBuffer"
+                              }, &payloadBuffer))
         {
-          GB_ERROR("failed to allocate BLAS vertices memory");
+          GB_ERROR("failed to allocate BLAS payload buffer memory");
           goto fail_cleanup;
         }
 
@@ -608,8 +613,9 @@ namespace gtl
           cgpuUnmapBuffer(s_device, tmpIndexBuffer);
         }
 
-        if (!s_stager->stageToBuffer((uint8_t*) indexData.data(), indicesSize, indexVertexBuffer, 0) ||
-            !s_stager->stageToBuffer((uint8_t*) vertexData.data(), verticesSize, indexVertexBuffer, vertexBufferOffset))
+        if (!s_stager->stageToBuffer((uint8_t*) &preamble, preambleSize, payloadBuffer, 0) ||
+            !s_stager->stageToBuffer((uint8_t*) indexData.data(), indicesSize, payloadBuffer, indexBufferOffset) ||
+            !s_stager->stageToBuffer((uint8_t*) vertexData.data(), verticesSize, payloadBuffer, vertexBufferOffset))
         {
           GB_ERROR("failed to stage BLAS data");
           goto fail_cleanup;
@@ -644,7 +650,7 @@ namespace gtl
         // Append BLAS for lifetime management
         blases.push_back({
           .blas = blas,
-          .indexVertexBuffer = indexVertexBuffer
+          .payloadBuffer = payloadBuffer
         });
 
         // Set proto entry
@@ -661,27 +667,29 @@ namespace gtl
 
         // Append BLAS payload data
         {
-          uint64_t indexVertexBufferAddress = cgpuGetBufferAddress(s_device, indexVertexBuffer);
-          if (indexVertexBufferAddress == 0)
+          uint64_t payloadBufferAddress = cgpuGetBufferAddress(s_device, payloadBuffer);
+          if (payloadBufferAddress == 0)
           {
             GB_ERROR("failed to get index-vertex buffer address");
             goto fail_cleanup;
           }
 
+          uint64_t vertexBufferSize = (vertexBufferOffset/* account for align */ - indexBufferOffset/* account for preamble */);
           blasPayloads.push_back({
-            .indexVertexBuffer = indexVertexBufferAddress,
-            .vertexOffset = uint32_t(vertexBufferOffset / sizeof(rp::FVertex))
+            .bufferAddress = payloadBufferAddress,
+            .vertexOffset = uint32_t(vertexBufferSize / sizeof(rp::FVertex)) // offset to skip index buffer
           });
         }
 
+        // (we ignore padding and the preamble in the reporting, but they are negligible)
         totalVerticesSize += verticesSize;
-        totalIndicesSize += (indexVertexBufferSize - verticesSize); // account for padding
+        totalIndicesSize += indicesSize;
 
         if (false) // not executed in success case
         {
 fail_cleanup:
-          if (indexVertexBuffer.handle)
-            cgpuDestroyBuffer(s_device, indexVertexBuffer);
+          if (payloadBuffer.handle)
+            cgpuDestroyBuffer(s_device, payloadBuffer);
           if (tmpPositionBuffer.handle)
             cgpuDestroyBuffer(s_device, tmpPositionBuffer);
           if (tmpIndexBuffer.handle)
@@ -785,7 +793,7 @@ cleanup:
       for (const GiBlas& blas : blases)
       {
         cgpuDestroyBlas(s_device, blas.blas);
-        cgpuDestroyBuffer(s_device, blas.indexVertexBuffer);
+        cgpuDestroyBuffer(s_device, blas.payloadBuffer);
       }
     }
     return cache;
@@ -796,7 +804,7 @@ cleanup:
     for (const GiBlas& blas : cache->blases)
     {
       cgpuDestroyBlas(s_device, blas.blas);
-      cgpuDestroyBuffer(s_device, blas.indexVertexBuffer);
+      cgpuDestroyBuffer(s_device, blas.payloadBuffer);
     }
     cgpuDestroyTlas(s_device, cache->tlas);
     cgpuDestroyBuffer(s_device, cache->blasPayloadsBuffer);
