@@ -106,6 +106,7 @@ namespace gtl
 
   struct GiMesh
   {
+    int id;
     std::vector<GiFace> faces;
     std::vector<GiVertex> vertices;
   };
@@ -470,6 +471,7 @@ namespace gtl
   GiMesh* giCreateMesh(const GiMeshDesc& desc)
   {
     GiMesh* mesh = new GiMesh;
+    mesh->id = desc.id;
     mesh->faces = std::vector<GiFace>(&desc.faces[0], &desc.faces[desc.faceCount]);
     mesh->vertices = std::vector<GiVertex>(&desc.vertices[0], &desc.vertices[desc.vertexCount]);
     return mesh;
@@ -515,7 +517,9 @@ namespace gtl
         }
 
         // Payload buffer preamble
-        rp::BlasPayloadBufferPreamble preamble;
+        rp::BlasPayloadBufferPreamble preamble = {
+          .objectId = mesh->id
+        };
         uint32_t preambleSize = sizeof(rp::BlasPayloadBufferPreamble);
 
         // Collect vertices

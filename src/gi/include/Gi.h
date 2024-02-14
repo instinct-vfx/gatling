@@ -38,7 +38,8 @@ namespace gtl
     ClockCycles,
     Opacity,
     Tangents,
-    Bitangents
+    Bitangents,
+    ObjectId
   };
 
   struct GiAsset;
@@ -88,6 +89,7 @@ namespace gtl
   {
     uint32_t  faceCount;
     GiFace*   faces;
+    int       id;
     uint32_t  vertexCount;
     GiVertex* vertices;
   };

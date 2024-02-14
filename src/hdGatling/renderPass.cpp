@@ -50,6 +50,7 @@ namespace
     { HdGatlingAovTokens->debugTangents,     GiAovId::Tangents     },
     { HdGatlingAovTokens->debugBitangents,   GiAovId::Bitangents   },
 #endif
+    { HdAovTokens->primId,                   GiAovId::ObjectId     },
   };
 
   std::string _MakeMaterialXColorMaterialSrc(const GfVec3f& color, const char* name)
