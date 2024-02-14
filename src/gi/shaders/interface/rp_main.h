@@ -105,7 +105,8 @@ struct PushConstants
 struct BlasPayloadBufferPreamble
 {
   GI_INT objectId;
-  GI_INT padding[7];
+  GI_INT instanceIdOffset;
+  GI_INT padding[6];
 };
 
 struct BlasPayload

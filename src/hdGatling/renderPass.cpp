@@ -51,6 +51,7 @@ namespace
     { HdGatlingAovTokens->debugBitangents,   GiAovId::Bitangents   },
 #endif
     { HdAovTokens->primId,                   GiAovId::ObjectId     },
+    { HdAovTokens->instanceId,               GiAovId::InstanceId   },
   };
 
   std::string _MakeMaterialXColorMaterialSrc(const GfVec3f& color, const char* name)
@@ -278,6 +279,9 @@ void HdGatlingRenderPass::_BakeMeshes(HdRenderIndex* renderIndex,
     meshes.push_back(giMesh);
 
     const GfMatrix4d& prototypeTransform = mesh->GetPrototypeTransform();
+
+    // TODO: I think we need to index a buffer for the actual id
+    // (see indices = sceneDelegate->GetInstanceIndices(id, prototypeId))
     for (size_t i = 0; i < transforms.size(); i++)
     {
       GfMatrix4d T = prototypeTransform * transforms[i];
@@ -291,6 +295,7 @@ void HdGatlingRenderPass::_BakeMeshes(HdRenderIndex* renderIndex,
       GiMeshInstance instance;
       instance.material = materials[materialIndex];
       instance.mesh = giMesh;
+      instance.id = i; // TODO: see above
       memcpy(instance.transform, instanceTransform, sizeof(instanceTransform));
       instances.push_back(instance);
     }

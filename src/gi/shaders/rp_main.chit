@@ -210,15 +210,22 @@ void main()
     rayPayload.radiance = vec3(shading_state.text_coords[0]);
     rayPayload.bitfield = 0xFFFFu;
     return;
-#elif AOV_ID == AOV_ID_OBJECTID
+#elif AOV_ID == AOV_ID_OBJECTID || AOV_ID == AOV_ID_INSTANCEID
     BlasPayload payload = blas_payloads[gl_InstanceCustomIndexEXT];
     IndexBuffer indices = IndexBuffer(payload.bufferAddress);
-    int objectId = indices.preamble.objectId;
+
+#if AOV_ID == AOV_ID_OBJECTID
+    int id = indices.preamble.objectId;
+#else
+    // the instance id is given by the way the instances were sorted during TLAS build.
+    // we substract the base offset to get the index in the original instancer.
+    int id = gl_InstanceID - indices.preamble.instanceIdOffset;
+#endif
 
     rayPayload.radiance = vec3(
-      ((objectId >>  0) & 0xFF) / 255.0,
-      ((objectId >>  8) & 0xFF) / 255.0,
-      ((objectId >> 16) & 0xFF) / 255.0
+      ((id >>  0) & 0xFF) / 255.0,
+      ((id >>  8) & 0xFF) / 255.0,
+      ((id >> 16) & 0xFF) / 255.0
       // we don't support the alpha component (16M combinations is enough)
     );
     rayPayload.bitfield = 0xFFFFu;

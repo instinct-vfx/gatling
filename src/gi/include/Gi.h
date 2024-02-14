@@ -39,7 +39,8 @@ namespace gtl
     Opacity,
     Tangents,
     Bitangents,
-    ObjectId
+    ObjectId,
+    InstanceId
   };
 
   struct GiAsset;
@@ -96,6 +97,7 @@ namespace gtl
 
   struct GiMeshInstance
   {
+    int32_t id;
     const GiMaterial* material;
     const GiMesh* mesh;
     float transform[3][4];

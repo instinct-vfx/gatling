@@ -486,9 +486,20 @@ namespace gtl
   {
     std::unordered_map<const GiMesh*, CgpuBlasInstance> blasInstanceProtos;
 
-    for (uint32_t m = 0; m < params.meshInstanceCount; m++)
+    std::vector<GiMeshInstance> sortedMeshInstances(params.meshInstanceCount);
+    memcpy(&sortedMeshInstances[0], params.meshInstances, params.meshInstanceCount * sizeof(GiMeshInstance));
+
+    std::sort(sortedMeshInstances.begin(), sortedMeshInstances.end(), [](const GiMeshInstance& a, const GiMeshInstance& b) {
+      if (a.mesh != b.mesh)
+      {
+        return a.mesh < b.mesh; // group by mesh
+      }
+      return a.id < b.id; // sort by instance id
+    });
+
+    for (uint32_t m = 0; m < sortedMeshInstances.size(); m++)
     {
-      const GiMeshInstance* instance = &params.meshInstances[m];
+      const GiMeshInstance* instance = &sortedMeshInstances[m];
       const GiMesh* mesh = instance->mesh;
 
       if (mesh->faces.empty())
@@ -518,7 +529,8 @@ namespace gtl
 
         // Payload buffer preamble
         rp::BlasPayloadBufferPreamble preamble = {
-          .objectId = mesh->id
+          .objectId = mesh->id,
+          .instanceIdOffset = (int) blasInstanceProtos.size()
         };
         uint32_t preambleSize = sizeof(rp::BlasPayloadBufferPreamble);
 
