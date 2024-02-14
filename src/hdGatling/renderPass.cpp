@@ -52,6 +52,7 @@ namespace
 #endif
     { HdAovTokens->primId,                   GiAovId::ObjectId     },
     { HdAovTokens->instanceId,               GiAovId::InstanceId   },
+    { HdAovTokens->elementId,                GiAovId::ElementId    },
   };
 
   std::string _MakeMaterialXColorMaterialSrc(const GfVec3f& color, const char* name)

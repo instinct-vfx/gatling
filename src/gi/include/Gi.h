@@ -40,7 +40,8 @@ namespace gtl
     Tangents,
     Bitangents,
     ObjectId,
-    InstanceId
+    InstanceId,
+    ElementId
   };
 
   struct GiAsset;
