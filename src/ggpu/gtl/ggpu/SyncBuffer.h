@@ -45,7 +45,7 @@ namespace gtl
                    GgpuDelayedResourceDestroyer& delayedResourceDestroyer,
                    uint64_t elementSize,
                    UpdateStrategy updateStrategy = UpdateStrategy::OptimalStaging,
-                   CgpuBufferUsageFlags bufferUsage = CGPU_BUFFER_USAGE_FLAG_STORAGE_BUFFER);
+                   CgpuBufferUsageFlags bufferUsage = CGPU_BUFFER_USAGE_FLAG_UNIFORM_BUFFER);
 
     ~GgpuSyncBuffer();
 

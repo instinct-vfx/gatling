@@ -9,6 +9,7 @@
 #ifdef REORDER_INVOCATIONS
 #extension GL_NV_shader_invocation_reorder: require
 #endif
+#extension GL_EXT_scalar_block_layout: require
 
 #include "rp_main_payload.glsl"
 #include "rp_main_descriptors.glsl"

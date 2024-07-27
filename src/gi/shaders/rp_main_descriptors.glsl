@@ -1,22 +1,24 @@
 #include "interface/rp_main.h"
 #include "common.glsl"
 
+#define MAX_LIGHT_COUNT 50000
+
 layout(binding = BINDING_INDEX_OUT_PIXELS, std430) buffer Framebuffer { vec4 pixels[]; };
 
 #if SPHERE_LIGHT_COUNT > 0
-layout(binding = BINDING_INDEX_SPHERE_LIGHTS, std430) readonly buffer SphereLightBuffer { SphereLight sphereLights[]; };
+layout(binding = BINDING_INDEX_SPHERE_LIGHTS, std430) uniform SphereLightBuffer { SphereLight sphereLights[MAX_LIGHT_COUNT]; };
 #endif
 
 #if DISTANT_LIGHT_COUNT > 0
-layout(binding = BINDING_INDEX_DISTANT_LIGHTS, std430) readonly buffer DistantLightBuffer { DistantLight distantLights[]; };
+layout(binding = BINDING_INDEX_DISTANT_LIGHTS, std430) uniform DistantLightBuffer { DistantLight distantLights[MAX_LIGHT_COUNT]; };
 #endif
 
 #if RECT_LIGHT_COUNT > 0
-layout(binding = BINDING_INDEX_RECT_LIGHTS, std430) readonly buffer RectLightBuffer { RectLight rectLights[]; };
+layout(binding = BINDING_INDEX_RECT_LIGHTS, std430) uniform RectLightBuffer { RectLight rectLights[MAX_LIGHT_COUNT]; };
 #endif
 
 #if DISK_LIGHT_COUNT > 0
-layout(binding = BINDING_INDEX_DISK_LIGHTS, std430) readonly buffer DiskLightBuffer { DiskLight diskLights[]; };
+layout(binding = BINDING_INDEX_DISK_LIGHTS, std430) uniform DiskLightBuffer { DiskLight diskLights[MAX_LIGHT_COUNT]; };
 #endif
 
 #if (TEXTURE_COUNT_2D > 0) || (TEXTURE_COUNT_3D > 0)
