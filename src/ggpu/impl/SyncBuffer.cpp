@@ -20,6 +20,8 @@
 
 #include <algorithm>
 
+#include <gtl/gb/Log.h>
+
 namespace gtl
 {
   GgpuSyncBuffer::GgpuSyncBuffer(CgpuDevice device,
@@ -33,24 +35,22 @@ namespace gtl
     , m_elementSize(elementSize)
     , m_updateStrategy(updateStrategy)
     , m_deviceBuffer(m_device,
-                     delayedResourceDestroyer,
-                     bufferUsage | CGPU_BUFFER_USAGE_FLAG_TRANSFER_DST,
-                     CGPU_MEMORY_PROPERTY_FLAG_DEVICE_LOCAL)
-    , m_hostBuffer(m_device,
-                   delayedResourceDestroyer,
-                   CGPU_BUFFER_USAGE_FLAG_STORAGE_BUFFER | CGPU_BUFFER_USAGE_FLAG_TRANSFER_SRC,
-                   CGPU_MEMORY_PROPERTY_FLAG_HOST_VISIBLE | CGPU_MEMORY_PROPERTY_FLAG_HOST_COHERENT |
-                     (updateStrategy == UpdateStrategy::PersistentMapping ? CGPU_MEMORY_PROPERTY_FLAG_DEVICE_LOCAL : 0))
+       delayedResourceDestroyer,
+       bufferUsage | CGPU_BUFFER_USAGE_FLAG_TRANSFER_DST,
+       CGPU_MEMORY_PROPERTY_FLAG_DEVICE_LOCAL)
+    , m_hostBuffer(new GgpuResizableBuffer(m_device, delayedResourceDestroyer,
+        CGPU_BUFFER_USAGE_FLAG_STORAGE_BUFFER | CGPU_BUFFER_USAGE_FLAG_TRANSFER_SRC,
+        CGPU_MEMORY_PROPERTY_FLAG_HOST_VISIBLE | CGPU_MEMORY_PROPERTY_FLAG_HOST_COHERENT
+          | (m_updateStrategy == UpdateStrategy::PreferPersistentMapping ? CGPU_MEMORY_PROPERTY_FLAG_DEVICE_LOCAL : 0)))
   {
-
   }
 
   GgpuSyncBuffer::~GgpuSyncBuffer()
   {
     assert(m_size == 0);
     assert(m_mappedHostMem == nullptr);
-    assert(m_hostBuffer.size() == 0);
-    assert(m_updateStrategy == UpdateStrategy::PersistentMapping || m_deviceBuffer.size() == 0);
+    assert(!m_hostBuffer || m_hostBuffer->size() == 0);
+    assert(m_updateStrategy == UpdateStrategy::PreferPersistentMapping || m_deviceBuffer.size() == 0);
   }
 
   uint8_t* GgpuSyncBuffer::read(uint64_t byteOffset, uint64_t byteSize)
@@ -70,8 +70,8 @@ namespace gtl
 
   CgpuBuffer GgpuSyncBuffer::buffer() const
   {
-    return m_updateStrategy == UpdateStrategy::PersistentMapping ?
-      m_hostBuffer.buffer() : m_deviceBuffer.buffer();
+    return m_updateStrategy == UpdateStrategy::PreferPersistentMapping ?
+      m_hostBuffer->buffer() : m_deviceBuffer.buffer();
   }
 
   uint64_t GgpuSyncBuffer::byteSize() const
@@ -90,7 +90,7 @@ namespace gtl
     // Unmap buffer before resize. New buffer is mapped later.
     if (m_mappedHostMem)
     {
-      cgpuUnmapBuffer(device, m_hostBuffer.buffer());
+      cgpuUnmapBuffer(device, m_hostBuffer->buffer());
       m_mappedHostMem = nullptr;
     }
 
@@ -99,7 +99,7 @@ namespace gtl
     // Reset buffers if new size is 0.
     if (newSize == 0)
     {
-      m_hostBuffer.resize(0, commandBuffer);
+      m_hostBuffer->resize(0, commandBuffer);
       m_deviceBuffer.resize(0, commandBuffer);
       return true;
     }
@@ -107,12 +107,32 @@ namespace gtl
     // Resize buffers.
     if (m_updateStrategy == UpdateStrategy::OptimalStaging)
     {
-      m_deviceBuffer.resize(newSize, commandBuffer);
+      if (!m_deviceBuffer.resize(newSize, commandBuffer))
+      {
+        return false;
+      }
     }
 
-    m_hostBuffer.resize(newSize, commandBuffer);
+    if (!m_hostBuffer->resize(newSize, commandBuffer))
+    {
+      if (m_updateStrategy == UpdateStrategy::OptimalStaging)
+      {
+        return false;
+      }
 
-    return cgpuMapBuffer(device, m_hostBuffer.buffer(), (void**) &m_mappedHostMem);
+      GB_LOG("Less than {} bytes of device-local, host-visible memory available - falling back to staging", newSize);
+
+      m_hostBuffer = std::make_unique<GgpuResizableBuffer>(
+        m_device,
+        m_delayedResourceDestroyer,
+        CGPU_BUFFER_USAGE_FLAG_STORAGE_BUFFER | CGPU_BUFFER_USAGE_FLAG_TRANSFER_SRC,
+        CGPU_MEMORY_PROPERTY_FLAG_HOST_VISIBLE | CGPU_MEMORY_PROPERTY_FLAG_HOST_COHERENT
+      );
+
+      m_updateStrategy = UpdateStrategy::OptimalStaging;
+    }
+
+    return cgpuMapBuffer(device, m_hostBuffer->buffer(), (void**) &m_mappedHostMem);
   }
 
   bool GgpuSyncBuffer::commitChanges()
@@ -129,8 +149,9 @@ namespace gtl
       return false;
     }
 
-    if (m_updateStrategy == UpdateStrategy::PersistentMapping)
+    if (m_updateStrategy == UpdateStrategy::PreferPersistentMapping)
     {
+// TODO: manual Vk flush
       return true;
     }
 

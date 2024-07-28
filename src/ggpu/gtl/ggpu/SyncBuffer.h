@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <assert.h>
+#include <memory>
 
 #include <gtl/cgpu/Cgpu.h>
 
@@ -35,7 +36,7 @@ namespace gtl
   public:
     enum class UpdateStrategy
     {
-      PersistentMapping,
+      PreferPersistentMapping,
       OptimalStaging
     };
 
@@ -82,7 +83,7 @@ namespace gtl
 
     uint64_t m_size = 0;
     GgpuResizableBuffer m_deviceBuffer; // only for OptimalStaging strategy
-    GgpuResizableBuffer m_hostBuffer;
+    std::unique_ptr<GgpuResizableBuffer> m_hostBuffer;
 
     uint8_t* m_mappedHostMem = nullptr;
     uint64_t m_dirtyRangeBegin = UINT64_MAX;
