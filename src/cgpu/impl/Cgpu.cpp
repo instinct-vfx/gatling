@@ -53,6 +53,9 @@
 #include <gtl/gb/SmallVector.h>
 #include <gtl/gb/Log.h>
 
+// TODO: we need to require the scalar block layout feature
+// TODO: dynamic uniform buffers are distinct from 'normal' UBOs. we also need a pool flag
+
 namespace gtl
 {
   /* Constants. */

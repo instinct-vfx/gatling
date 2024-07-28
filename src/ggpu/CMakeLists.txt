@@ -6,12 +6,14 @@ add_library(
   gtl/ggpu/ResizableBuffer.h
   gtl/ggpu/Stager.h
   gtl/ggpu/SyncBuffer.h
+  gtl/ggpu/UniformBumpAlloc.h
   impl/DelayedResourceDestroyer.cpp
   impl/DenseDataStore.cpp
   impl/LinearDataStore.cpp
   impl/ResizableBuffer.cpp
   impl/Stager.cpp
   impl/SyncBuffer.cpp
+  impl/UniformBumpAlloc.cpp
 )
 
 target_include_directories(

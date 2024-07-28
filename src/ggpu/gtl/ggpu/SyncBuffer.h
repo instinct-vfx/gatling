@@ -26,6 +26,8 @@
 
 #include "ResizableBuffer.h"
 
+// TODO: remove elementSize and non-raw read/write functions. move into GgpuSyncArray/GgpuArray class
+// -> maybe rename this to SyncVector and resizableBuffer to Vector?
 namespace gtl
 {
   class GgpuStager;
