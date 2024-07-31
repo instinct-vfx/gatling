@@ -1,0 +1,23 @@
+name: Run Test
+
+on:
+  push:
+    paths-ignore:
+      - '**.md'
+      - '**.glsl'
+
+jobs:
+  build-mdl-sdk:
+    name: Build MDL SDK
+    uses: pablode/MDL-SDK/.github/workflows/main.yml@GA-2023.0.4
+    with:
+      cache-key-prefix: ${{ vars.MDL_SDK_CACHE_KEY_PREFIX }}
+
+  build-2405:
+    name: Build gatling for USD v24.05 (Release)
+    needs: build-mdl-sdk
+    uses: ./.github/workflows/_build-usd.yml
+    with:
+      usd-version: 24.05
+      mdl-sdk-cache-key-prefix: ${{ vars.MDL_SDK_CACHE_KEY_PREFIX }}
+
