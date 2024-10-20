@@ -95,43 +95,34 @@ namespace gtl
     GiVertex* vertices;
   };
 
+  // TODO: rename
   struct GiShaderCacheParams
   {
-    GiAovId            aovId;
-    bool               depthOfField;
-    bool               domeLightCameraVisible;
-    bool               filterImportanceSampling;
-    uint32_t           materialCount;
-    const GiMaterial** materials;
-    bool               nextEventEstimation;
-    bool               progressiveAccumulation;
-    GiScene*           scene;
-    uint32_t           mediumStackSize;
-  };
-
-  struct GiBvhParams
-  {
-    GiMesh**        meshes;
-    uint32_t        meshCount;
-    GiShaderCache*  shaderCache;
+    GiAovId  aovId;
+    bool     depthOfField;
+    bool     domeLightCameraVisible;
+    bool     filterImportanceSampling;
+    bool     nextEventEstimation;
+    bool     progressiveAccumulation;
+    uint32_t mediumStackSize;
+    GiScene* scene;
   };
 
   struct GiRenderParams
   {
-    const GiBvh*         bvh;
-    GiCameraDesc         camera;
-    const GiShaderCache* shaderCache;
-    GiRenderBuffer*      renderBuffer;
-    float                lightIntensityMultiplier;
-    uint32_t             maxBounces;
-    uint32_t             spp;
-    uint32_t             rrBounceOffset;
-    float                rrInvMinTermProb;
-    float                maxSampleValue;
-    uint32_t             maxVolumeWalkLength;
-    float                backgroundColor[4];
-    GiDomeLight*         domeLight;
-    GiScene*             scene;
+    const GiShaderCacheParams shaderCacheParams;
+    GiCameraDesc    camera;
+    GiRenderBuffer* renderBuffer;
+    float           lightIntensityMultiplier;
+    uint32_t        maxBounces;
+    uint32_t        spp;
+    uint32_t        rrBounceOffset;
+    float           rrInvMinTermProb;
+    float           maxSampleValue;
+    uint32_t        maxVolumeWalkLength;
+    float           backgroundColor[4];
+    GiDomeLight*    domeLight;
+    GiScene*        scene;
   };
 
   struct GiInitParams
@@ -168,17 +159,7 @@ namespace gtl
   void giSetMeshMaterial(GiMesh* mesh, const GiMaterial* mat);
   void giDestroyMesh(GiMesh* mesh);
 
-  GiBvh* giCreateBvh(GiScene* scene, const GiBvhParams& params);
-  void giDestroyBvh(GiBvh* bvh);
-
-  GiShaderCache* giCreateShaderCache(const GiShaderCacheParams& params);
-  void giDestroyShaderCache(GiShaderCache* cache);
-  bool giShaderCacheNeedsRebuild();
-  bool giGeomCacheNeedsRebuild();
-
   void giInvalidateFramebuffer();
-  void giInvalidateShaderCache();
-  void giInvalidateGeomCache();
 
   GiStatus giRender(const GiRenderParams& params, float* rgbaImg);
 
